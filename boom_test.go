@@ -2,6 +2,7 @@ package bloom
 
 import (
 	"fmt"
+	"math"
 	"testing"
 )
 
@@ -57,5 +58,34 @@ func TestBitset(t *testing.T) {
 	// 查询
 	for i := 0; i < 8; i++ {
 		fmt.Printf("%d: %v\n", i, bitset.inquiry(&coord{setIndex: 0, bitIndex: i}))
+	}
+}
+
+type bit float64
+
+const (
+	b   bit = 8
+	kib     = 1 << 10 * b
+	mib     = 1 << 10 * kib
+	gib     = 1 << 10 * mib
+)
+
+func TestKMP(t *testing.T) {
+	var n = 1e10   // 样本量
+	var p = 0.0001 // 预期失误率
+
+	var k float64 // hash 函数个数
+
+	// 根据样本量和预期失误率，求 k、m
+	{
+		// mb bit 大小
+		// mk byte 大小
+		var m float64
+		m = math.Ceil(-1 * n * math.Log(p) / (math.Ln2 * math.Ln2))
+		k = math.Ceil(math.Ln2 * m / n)
+		fmt.Printf("样本量: %.f\n", n)
+		fmt.Println("哈希函数:", k)
+		fmt.Printf("内存占用: %.f GiB\n", math.Ceil(m/float64(gib)))
+		fmt.Println("预期失误率:", p)
 	}
 }
