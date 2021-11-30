@@ -3,20 +3,36 @@ package bloom
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"testing"
+	"time"
 )
 
-var blacklist = []string{"星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期天"}
-
-var testlist = []string{"星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期天", "中秋节", "国庆节", "元旦节"}
-
 func TestBoom(t *testing.T) {
-	boom := NewBoom(1e10, 0.0001)
+	var loop int = 1e4
+	boom := NewBoom(uint(loop), 0.0001)
 
-	boom.Add(blacklist...)
+	var count int
+	start := time.Now()
+	// 奇数加入黑名单
+	for i := 2; i <= loop<<1; i += 2 {
+		count++
+		boom.Add(strconv.Itoa(i - 1))
+	}
+	fmt.Printf("%d条数据已经入黑名单, 耗时: %v\n", count, time.Since(start)) // 129.683855ms
 
-	for _, val := range testlist {
-		fmt.Printf("%s: %v\n", val, boom.Find(val))
+	// 查询所有奇数
+	for i := 2; i <= loop<<1; i += 2 {
+		if !boom.Find(strconv.Itoa(i - 1)) {
+			fmt.Println("失败 ---", i-1)
+		}
+	}
+
+	// 查询所有偶数
+	for i := 2; i <= loop<<1; i += 2 {
+		if boom.Find(strconv.Itoa(i)) {
+			fmt.Println("误判 ---", i)
+		}
 	}
 }
 
@@ -61,31 +77,45 @@ func TestBitset(t *testing.T) {
 	}
 }
 
-type bit float64
-
 const (
-	b   bit = 8
-	kib     = 1 << 10 * b
-	mib     = 1 << 10 * kib
-	gib     = 1 << 10 * mib
+	b   float64 = 8
+	kib         = 1 << 10 * b
+	mib         = 1 << 10 * kib
+	gib         = 1 << 10 * mib
 )
 
 func TestKMP(t *testing.T) {
-	var n = 1e10   // 样本量
-	var p = 0.0001 // 预期失误率
-
-	var k float64 // hash 函数个数
+	var n = 1e1 // 样本量
+	var p = 0.1 // 预期失误率
 
 	// 根据样本量和预期失误率，求 k、m
 	{
 		// mb bit 大小
 		// mk byte 大小
-		var m float64
+		var m, k float64
 		m = math.Ceil(-1 * n * math.Log(p) / (math.Ln2 * math.Ln2))
 		k = math.Ceil(math.Ln2 * m / n)
 		fmt.Printf("样本量: %.f\n", n)
 		fmt.Println("哈希函数:", k)
-		fmt.Printf("内存占用: %.f GiB\n", math.Ceil(m/float64(gib)))
+		fmt.Printf("内存占用: %.f\n", m)
+		// fmt.Printf("内存占用: %.f GiB\n", math.Ceil(m/gib))
 		fmt.Println("预期失误率:", p)
+	}
+
+	fmt.Println("+ + + + + + + + + +")
+
+	// 根据实际内存大小和哈希函数个数，求真实失误率
+	// p = (1 - e^(-1 * n * k / m))^k
+	{
+		var m = 32 * gib
+		var k float64 = 14
+		var p float64
+
+		p = math.Pow((1 - math.Pow(math.E, (-1*n*k/m))), k)
+
+		fmt.Printf("样本量: %.f\n", n)
+		fmt.Println("哈希函数:", k)
+		fmt.Printf("实际占用占用: %.f GiB\n", m/gib)
+		fmt.Println("真实失误率:", p)
 	}
 }

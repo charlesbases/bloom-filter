@@ -63,11 +63,11 @@ func (boom *boom) Add(v ...string) {
 
 func (boom *boom) Find(data string) bool {
 	for _, coord := range boom.coords(data) {
-		if boom.bitset.inquiry(coord) == true {
-			return true
+		if !boom.bitset.inquiry(coord) {
+			return false
 		}
 	}
-	return false
+	return true
 }
 
 func (boom *boom) coords(data string) []*coord {
@@ -75,10 +75,7 @@ func (boom *boom) coords(data string) []*coord {
 	for idx, hash := range boom.hashList {
 		// point := hash.point(boom.m, *boom.decodeString(&data))
 		point := hash.point(boom.m, []byte(data))
-		coords[idx] = &coord{
-			setIndex: int(math.Ceil(float64(point) / 8)),
-			bitIndex: int(point % 8),
-		}
+		coords[idx] = new(coord).index(point)
 	}
 	return coords
 }

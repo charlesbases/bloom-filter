@@ -25,3 +25,10 @@ func (bit *bitset) mark(c *coord) {
 func (bit *bitset) inquiry(c *coord) bool {
 	return (*bit)[c.setIndex]&bits[c.bitIndex] == bits[c.bitIndex]
 }
+
+// index 下标
+func (c *coord) index(point uint64) *coord {
+	c.setIndex = int(point >> 3)
+	c.bitIndex = int(point & 7)
+	return c
+}
