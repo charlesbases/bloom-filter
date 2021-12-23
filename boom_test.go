@@ -3,36 +3,108 @@ package bloom
 import (
 	"fmt"
 	"math"
-	"strconv"
+	"math/rand"
+	"os"
+	"strings"
 	"testing"
 	"time"
 )
 
+var pool = []string{
+	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+	"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+	"n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+}
+
+var (
+	// loop 测试数据数量
+	loop uint = 1e6
+	// 允许的失误率
+	rate = 0.001
+
+	// store 测试数据
+	store = map[string]bool{}
+	// strlen 字符串长度范围
+	strlenMin = 10
+	strlenMax = 20
+)
+
+func init() {
+	rand.Seed(time.Now().Unix())
+}
+
+// _random 生成随机字符串
+func _random() string {
+	var (
+		strlen  = rand.Intn(strlenMax-strlenMin) + strlenMin
+		poollen = len(pool)
+	)
+
+	var builder strings.Builder
+	builder.Grow(strlen)
+	for i := 0; i < strlen; i++ {
+		builder.WriteString(pool[rand.Intn(poollen)])
+	}
+
+	return builder.String()
+}
+
+// TestBoom
+//  ==> 数据已添加:  1000000
+//  ==> 数据校验成功:  1000000
+//  ==> 随机数据校验中...
+//    总数据量: 2000000
+//    误判次数: 2018
+//    既定失误率: 0.001
+//    实际失误率: 0.00100900
 func TestBoom(t *testing.T) {
-	var loop int = 1e4
-	boom := NewBoom(uint(loop), 0.0001)
+	var boom = NewBoom(loop, rate)
 
-	var count int
-	start := time.Now()
-	// 奇数加入黑名单
-	for i := 2; i <= loop<<1; i += 2 {
-		count++
-		boom.Add(strconv.Itoa(i - 1))
-	}
-	fmt.Printf("%d条数据已经入黑名单, 耗时: %v\n", count, time.Since(start)) // 129.683855ms
+	// 生成随机字符串并添加至布隆过滤器
+	{
+		for i := 0; i < int(loop); i++ {
+			var str = _random()
 
-	// 查询所有奇数
-	for i := 2; i <= loop<<1; i += 2 {
-		if !boom.Find(strconv.Itoa(i - 1)) {
-			fmt.Println("失败 ---", i-1)
+			// store
+			store[str] = true
+
+			// boom.add
+			boom.Add(str)
 		}
+
+		fmt.Println("  ==> 数据已添加: ", loop)
 	}
 
-	// 查询所有偶数
-	for i := 2; i <= loop<<1; i += 2 {
-		if boom.Find(strconv.Itoa(i)) {
-			fmt.Println("误判 ---", i)
+	// 数据检验
+	{
+		for key := range store {
+			if !boom.Find(key) {
+				fmt.Println("  ==> 数据校验失败: ", key)
+				os.Exit(1)
+			}
 		}
+
+		fmt.Println("  ==> 数据校验成功: ", loop)
+	}
+
+	// 随机数据校验失误率
+	{
+		var sum = loop << 1
+		var mistakes int
+		for i := 0; i < int(sum); i++ {
+			var str = _random()
+
+			// 未添加至过滤器，但是检验通过
+			if !store[str] && boom.Find(str) {
+				mistakes++
+			}
+		}
+
+		fmt.Println("  ==> 随机数据校验中...")
+		fmt.Println("    总数据量:", sum)
+		fmt.Println("    误判次数:", mistakes)
+		fmt.Println("    既定失误率:", rate)
+		fmt.Printf("    实际失误率: %.8f\n", float64(mistakes)/float64(sum))
 	}
 }
 
